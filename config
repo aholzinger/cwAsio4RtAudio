@@ -1,0 +1,52 @@
+# cwAsio4RtAudio Preferences File
+# https://github.com/aholzinger/cwasio4rtaudio
+
+# RtAudio output device to be used
+# the names need to be in RtAudio style
+# example:
+# aplay -L lists the following:
+# hw:CARD=PCH,DEV=0
+#     HDA Intel PCH, ALC897 Analog
+# the RtAudio name is then "HDA Intel PCH (ALC897 Analog)"
+# result:
+# outputDevice=HDA Intel PCH (ALC897 Analog)
+# no output device: comment out line with "outputDevice" (see next line)
+# outputDevice=
+# default output device: leave empty after '=' (do NOT comment out line!)
+# outputDevice=
+outputDevice=HDA Intel PCH (ALC897 Analog)
+
+# number of output channels
+# empty: use all the channels the output device is offering
+# default (parameter missing) is 2
+outputChannels=2
+
+# RtAudio input device to be used
+# the names need to be in RtAudio style
+# example:
+# arecord -L lists the following:
+# hw:CARD=PCH,DEV=0
+#     HDA Intel PCH, ALC897 Analog
+# the RtAudio name is then "HDA Intel PCH (ALC897 Analog)"
+# result:
+# inputDevice=HDA Intel PCH (ALC897 Analog)
+# no input device: comment out line with "inputDevice" (see next line)
+# inputDevice=
+# default input device: leave empty after '=' (do NOT comment out line!)
+# inputDevice=
+inputDevice=HDA Intel PCH (ALC897 Analog)
+
+# number of input channels
+# empty: use all the channels the input device is offering
+# default (parameter missing) is 2
+inputChannels=2
+
+# sample rate to be used
+# if RtAudio device(s) specified above do not support the rate cwASIO device will not be available
+# default (parameter missing) is 48000
+sampleRate=48000
+
+# buffer size in frames to be used
+# if RtAudio device(s) specified above do not support the buffer size cwASIO device will not be available
+# default (parameter missing) is 256
+bufferSize=256
