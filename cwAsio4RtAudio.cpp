@@ -315,7 +315,7 @@ public:
         , references_{1}
         , driverKey_{C4R_DRIVER_KEY_0}
         , initialised_{false}
-        , rtaDeviceIds_{rtaDevice_.getDeviceIds()}
+        , rtaDeviceIds_{rta_.getDeviceIds()}
         , deviceIdOut_{0}
         , outputChannels_{0}
         , deviceIdIn_{0}
@@ -372,18 +372,18 @@ public:
         if(config.first) {
             if(config.second.outputDevice_.first) {
                 if(config.second.outputDevice_.second.empty())
-                    deviceIdOut = rtaDevice_.getDefaultOutputDevice();
+                    deviceIdOut = rta_.getDefaultOutputDevice();
                 else
-                    deviceIdOut = getDeviceId(rtaDevice_, config.second.outputDevice_.second);
+                    deviceIdOut = getDeviceId(rta_, config.second.outputDevice_.second);
             }
             if(config.second.outputChannels_.first) {
                 outputChannels = config.second.outputChannels_.second;
             }
             if(config.second.inputDevice_.first) {
                 if(config.second.inputDevice_.second.empty())
-                    deviceIdIn = rtaDevice_.getDefaultInputDevice();
+                    deviceIdIn = rta_.getDefaultInputDevice();
                 else
-                    deviceIdIn = getDeviceId(rtaDevice_, config.second.inputDevice_.second);
+                    deviceIdIn = getDeviceId(rta_, config.second.inputDevice_.second);
             }
             if(config.second.inputChannels_.first) {
                 inputChannels = config.second.inputChannels_.second;
@@ -395,15 +395,15 @@ public:
             }
         }
         if(deviceIdOut == 0 && deviceIdIn == 0) {
-            deviceIdOut = rtaDevice_.getDefaultOutputDevice();
-            deviceIdIn  = rtaDevice_.getDefaultInputDevice();
+            deviceIdOut = rta_.getDefaultOutputDevice();
+            deviceIdIn  = rta_.getDefaultInputDevice();
         }
-        cwASIOsampleType astOut = ::to_cwAsioSampleType(rtaDevice_.getDeviceInfo(deviceIdOut).nativeFormats);
+        cwASIOsampleType astOut = ::to_cwAsioSampleType(rta_.getDeviceInfo(deviceIdOut).nativeFormats);
         if(deviceIdOut && astOut == ASIOSTLastEntry) {
             errorText_ = "output device has unsupported sample format";
             return ASIOFalse;
         }
-        cwASIOsampleType astIn = ::to_cwAsioSampleType(rtaDevice_.getDeviceInfo(deviceIdIn).nativeFormats);
+        cwASIOsampleType astIn = ::to_cwAsioSampleType(rta_.getDeviceInfo(deviceIdIn).nativeFormats);
         if(deviceIdIn && astIn == ASIOSTLastEntry) {
             errorText_ = "input device has unsupported sample format";
             return ASIOFalse;
@@ -415,7 +415,7 @@ public:
         RtAudio::StreamParameters paramsOut;
         RtAudio::StreamParameters *pParamsOut = nullptr;
         if(deviceIdOut) {
-            RtAudio::DeviceInfo di = rtaDevice_.getDeviceInfo(deviceIdOut);
+            RtAudio::DeviceInfo di = rta_.getDeviceInfo(deviceIdOut);
             if(di.outputChannels && outputChannels) {
                 if(std::find(di.sampleRates.cbegin(), di.sampleRates.cend(), sampleRate) != di.sampleRates.cend()) {
                     paramsOut.deviceId = deviceIdOut;
@@ -429,7 +429,7 @@ public:
         RtAudio::StreamParameters paramsIn;
         RtAudio::StreamParameters *pParamsIn = nullptr;
         if(deviceIdIn) {
-            RtAudio::DeviceInfo di = rtaDevice_.getDeviceInfo(deviceIdIn);
+            RtAudio::DeviceInfo di = rta_.getDeviceInfo(deviceIdIn);
             if(di.inputChannels && inputChannels) {
                 if(std::find(di.sampleRates.cbegin(), di.sampleRates.cend(), sampleRate) != di.sampleRates.cend()) {
                     paramsIn.deviceId = deviceIdIn;
@@ -451,7 +451,7 @@ public:
         auto cb = [that = this, pParamsOut, pParamsIn](void *outBuf, void *inBuf, unsigned frames, double streamTime, RtAudioStreamStatus status, void*) {
             return that->rtAudioCallback(pParamsOut ? outBuf : nullptr, pParamsIn ? inBuf : nullptr, frames, streamTime, status);
         };
-        RtAudioErrorType rtaError = rtaDevice_.openStream(pParamsOut, pParamsIn, RTAUDIO_SINT32, sampleRate, &bufferSize, cb);
+        RtAudioErrorType rtaError = rta_.openStream(pParamsOut, pParamsIn, RTAUDIO_SINT32, sampleRate, &bufferSize, cb);
         if(rtaError != RTAUDIO_NO_ERROR) {
             errorText_ = "RtAudio::openStream: " + ::to_string(rtaError);
             return ASIOFalse;
@@ -486,7 +486,7 @@ public:
             errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
-        RtAudioErrorType rtaError = rtaDevice_.startStream();
+        RtAudioErrorType rtaError = rta_.startStream();
         if(rtaError != RTAUDIO_NO_ERROR) {
             errorText_ = "RtAudio::startStream: " + ::to_string(rtaError);
             return ASE_HWMalfunction;
@@ -499,15 +499,15 @@ public:
             errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
-        if(!rtaDevice_.isStreamOpen()) {
+        if(!rta_.isStreamOpen()) {
             errorText_ = "stream not open";
             return ASE_InvalidMode;
         }
-        if(!rtaDevice_.isStreamRunning()) {
+        if(!rta_.isStreamRunning()) {
             errorText_ = "stream not started";
             return ASE_InvalidMode;
         }
-        RtAudioErrorType rtaError = rtaDevice_.stopStream();
+        RtAudioErrorType rtaError = rta_.stopStream();
         if(rtaError != RTAUDIO_NO_ERROR) {
             errorText_ = "RtAudio::stopStream: " + ::to_string(rtaError);
             return ASE_HWMalfunction;
@@ -636,7 +636,7 @@ public:
         }
         if(info) {
             assert(info->isInput && deviceIdIn_ || !info->isInput && deviceIdOut_);
-            RtAudio::DeviceInfo const &di = rtaDevice_.getDeviceInfo(info->isInput ? deviceIdIn_ : deviceIdOut_);
+            RtAudio::DeviceInfo const &di = rta_.getDeviceInfo(info->isInput ? deviceIdIn_ : deviceIdOut_);
             unsigned maxChannels = info->isInput ? di.inputChannels : di.outputChannels;
             if(info->channel >= maxChannels) {
                 errorText_ = "channel index too big";
@@ -826,12 +826,12 @@ private:
     unsigned getOutputChannels() {
         if(deviceIdOut_ == 0)
             return 0;
-        return rtaDevice_.getDeviceInfo(deviceIdOut_).outputChannels;
+        return rta_.getDeviceInfo(deviceIdOut_).outputChannels;
     }
     unsigned getInputChannels() {
         if(deviceIdIn_ == 0)
             return 0;
-        return rtaDevice_.getDeviceInfo(deviceIdIn_).inputChannels;
+        return rta_.getDeviceInfo(deviceIdIn_).inputChannels;
     }
 
 
@@ -841,7 +841,7 @@ private:
     std::string driverKey_;
     bool initialised_;
     std::string errorText_;
-    RtAudio rtaDevice_;
+    RtAudio rta_;
     std::vector<unsigned> rtaDeviceIds_;
     unsigned deviceIdOut_;
     unsigned outputChannels_;
