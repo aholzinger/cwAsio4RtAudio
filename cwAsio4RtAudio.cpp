@@ -390,7 +390,7 @@ public:
             }
             sampleRate = config.second.sampleRate_;
             bufferSize = config.second.bufferSize_;
-            if(!std::has_single_bit(bufferSize_)) {
+            if(!std::has_single_bit(bufferSize)) {
                 bufferSize = std::bit_ceil(bufferSize);
             }
         }
