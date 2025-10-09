@@ -352,7 +352,7 @@ public:
         if(initialised_)
             return ASIOFalse;
         if(rtaDeviceIds_.empty()) {
-            errorText_ = "no ALSA device available";
+            errorText_ = "no RtAudio device available";
             return ASIOFalse;
         }
         // read stored configuration
