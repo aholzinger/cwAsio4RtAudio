@@ -496,7 +496,7 @@ public:
 
     cwASIOError stop() {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(!rtaDevice_.isStreamOpen()) {
@@ -517,7 +517,7 @@ public:
 
     cwASIOError getChannels(long *in, long *out) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(in)
@@ -529,7 +529,7 @@ public:
 
     cwASIOError getLatencies(long *in, long *out) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(in)
@@ -541,7 +541,7 @@ public:
 
     cwASIOError getBufferSize(long *min, long *max, long *pref, long *gran) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(min)
@@ -557,7 +557,7 @@ public:
 
     cwASIOError canSampleRate(double srate) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(srate < double(sampleRate_) || srate > double(sampleRate_)) {
@@ -569,7 +569,7 @@ public:
 
     cwASIOError getSampleRate(double *srate) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(srate)
@@ -579,7 +579,7 @@ public:
 
     cwASIOError setSampleRate(double srate) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(srate < double(sampleRate_) || srate > double(sampleRate_)) {
@@ -591,7 +591,7 @@ public:
 
     cwASIOError getClockSources(struct cwASIOClockSource *clocks, long *num) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(clocks && num && *num > 0) {
@@ -607,7 +607,7 @@ public:
 
     cwASIOError setClockSource(long ref) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(ref != 0) {
@@ -619,7 +619,7 @@ public:
 
     cwASIOError getSamplePosition(cwASIOSamples *sPos, cwASIOTimeStamp *tStamp) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(sPos)
@@ -631,7 +631,7 @@ public:
 
     cwASIOError getChannelInfo(struct cwASIOChannelInfo *info) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(info) {
@@ -658,7 +658,7 @@ public:
 
     cwASIOError createBuffers(struct cwASIOBufferInfo *infos, long num, long size, struct cwASIOCallbacks const *cb) {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         if(size != 256) {
@@ -727,7 +727,7 @@ public:
 
     cwASIOError disposeBuffers() {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         cwAsioOutBufs_.clear();
@@ -759,7 +759,7 @@ public:
 
     cwASIOError outputReady() {
         if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
+            errorText_ = driverKey_ + " not initialised";
             return ASE_InvalidMode;
         }
         errorText_ = "outputReady not supported";
