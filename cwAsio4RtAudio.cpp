@@ -27,6 +27,18 @@ extern "C" {
 #include <utility>
 #include <RtAudio.h>
 
+#define C4R_MAIN_DRIVER_KEY "cwAsio4RtAudio"
+#define C4R_DRIVER_KEY_0    C4R_MAIN_DRIVER_KEY
+#define C4R_DRIVER_KEY_1    C4R_MAIN_DRIVER_KEY " #1"
+#define C4R_DRIVER_KEY_2    C4R_MAIN_DRIVER_KEY " #2"
+#define C4R_DRIVER_KEY_3    C4R_MAIN_DRIVER_KEY " #3"
+#define C4R_DRIVER_KEY_4    C4R_MAIN_DRIVER_KEY " #4"
+#define C4R_DRIVER_KEY_5    C4R_MAIN_DRIVER_KEY " #5"
+#define C4R_DRIVER_KEY_6    C4R_MAIN_DRIVER_KEY " #6"
+#define C4R_DRIVER_KEY_7    C4R_MAIN_DRIVER_KEY " #7"
+#define C4R_DRIVER_KEY_8    C4R_MAIN_DRIVER_KEY " #8"
+#define C4R_DRIVER_KEY_9    C4R_MAIN_DRIVER_KEY " #9"
+
 using namespace std::string_literals;
 
 
@@ -50,17 +62,32 @@ struct Configuration {
 };
 
 // Initialize the following data constants with the values for your driver.
-char const *cwAsioKey = "cwASIO";
-char const *cwAsioDriverKey = "cwAsio4RtAudio";
+char const *cwAsioKey               = "cwASIO";
+size_t const cwAsioDriverKeyMaxLen  = 32U;
 char const *cwAsioDriverDescription = "cwASIO for RtAudio devices";
-long const  cwAsioDriverVersion = 1;
-size_t const errorBufLength = 123U; // buffer is 124 chars
-char const *configOutputDevice   = "outputDevice=";
-char const *configOutputChannels = "outputChannels=";
-char const *configInputDevice    = "inputDevice=";
-char const *configInputChannels  = "inputChannels=";
-char const *configSampleRate     = "sampleRate=";
-char const *configBufferSize     = "bufferSize=";
+long const  cwAsioDriverVersion     = 1;
+size_t const errorBufLength         = 123U; // buffer is 124 chars
+char const *configOutputDevice      = "outputDevice=";
+char const *configOutputChannels    = "outputChannels=";
+char const *configInputDevice       = "inputDevice=";
+char const *configInputChannels     = "inputChannels=";
+char const *configSampleRate        = "sampleRate=";
+char const *configBufferSize        = "bufferSize=";
+
+// we support 10 cwASIO devices of our kind
+struct cwASIOinstance const cwAsioDriverInstances[] = {
+    { .name = C4R_DRIVER_KEY_0, .guid = {0x754214be,0xf784,0x439e,0xa8,0x04,0x4e,0xf7,0x46,0x1f,0x26,0xc8} },
+    { .name = C4R_DRIVER_KEY_1, .guid = {0x00af3471,0x800a,0x48bf,0xb6,0x74,0x4e,0xcc,0x84,0xcc,0x3a,0x0a} },
+    { .name = C4R_DRIVER_KEY_2, .guid = {0x1b1a4acc,0x3518,0x4afa,0xad,0xee,0xc8,0x9b,0x3d,0xb1,0x13,0x06} },
+    { .name = C4R_DRIVER_KEY_3, .guid = {0x1b82d5fb,0x3365,0x4ed3,0xa1,0x19,0x48,0x42,0x27,0xed,0xc3,0x54} },
+    { .name = C4R_DRIVER_KEY_4, .guid = {0x7fd4c48d,0x002e,0x4294,0x90,0x53,0xab,0xf5,0x84,0x19,0xfc,0x01} },
+    { .name = C4R_DRIVER_KEY_5, .guid = {0xf1d72885,0xf745,0x42db,0x99,0xaa,0x25,0x62,0xc0,0xf5,0x75,0xc0} },
+    { .name = C4R_DRIVER_KEY_6, .guid = {0x4c27d025,0x0756,0x4097,0xb6,0xd4,0x5a,0xc6,0x39,0xdc,0xad,0xb9} },
+    { .name = C4R_DRIVER_KEY_7, .guid = {0xee884f67,0xddd5,0x4587,0x8b,0xff,0xbf,0x26,0x8b,0xd6,0xdf,0xa5} },
+    { .name = C4R_DRIVER_KEY_8, .guid = {0x5f75abba,0x7036,0x4d40,0xb9,0x4d,0xc0,0x68,0xa3,0x90,0x69,0xa0} },
+    { .name = C4R_DRIVER_KEY_9, .guid = {0x1b10277c,0x64d8,0x4fa5,0xa7,0x32,0xc1,0xde,0x5c,0x64,0x7b,0x4a} },
+    { .name = NULL }        // this terminates the list and must always be there.
+};
 
 std::atomic_uint activeInstances = 0;
 
@@ -238,20 +265,20 @@ static std::string getHomeDirectory() {
     return std::string(home);
 }
 
-static void appendConfigPath(std::filesystem::path &path) {
-    path /= cwAsioDriverKey;
+static void appendConfigPath(std::filesystem::path &path, std::string const &driverKey) {
+    path /= driverKey;
     path /= "config";
 }
 
-static std::filesystem::path getUserConfigFilePath() {
+static std::filesystem::path getUserConfigFilePath(std::string const &driverKey) {
     std::filesystem::path path = ::getHomeDirectory() / std::filesystem::path("."s + cwAsioKey);
-    appendConfigPath(path);
+    appendConfigPath(path, driverKey);
     return path;
 }
 
-static std::filesystem::path getSystemConfigFilePath() {
+static std::filesystem::path getSystemConfigFilePath(std::string const &driverKey) {
     std::filesystem::path path = "/etc" / std::filesystem::path(cwAsioKey);
-    appendConfigPath(path);
+    appendConfigPath(path, driverKey);
     return path;
 }
 
@@ -269,6 +296,15 @@ static unsigned getDeviceId(RtAudio &rtAudio, std::string const &deviceName) {
     return ids.at(index);
 }
 
+static std::string makeStringWithMaxLength(char const *str, size_t maxLength) {
+    assert(maxLength);
+    if(maxLength == 0)
+        return std::string();
+    std::string s(str, str + maxLength);
+    s[maxLength - 1U] = '\0';      // there might not be a null byte at the end of the string
+    return std::string(s.c_str()); // return like this is needed to return shorter string
+}
+
 /** The cwASIO driver implemented as a C++ class. */
 class CwAsio4AlsaDriver : public cwASIODriver {
     CwAsio4AlsaDriver(CwAsio4AlsaDriver &&) =delete;  // no move/copy
@@ -277,6 +313,7 @@ public:
     CwAsio4AlsaDriver()
         : cwASIODriver{ &vtbl_ }
         , references_{1}
+        , driverKey_{C4R_DRIVER_KEY_0}
         , initialised_{false}
         , rtaDeviceIds_{rtaDevice_.getDeviceIds()}
         , deviceIdOut_{0}
@@ -320,10 +357,10 @@ public:
         }
         // read stored configuration
         // first try user's home directory
-        std::filesystem::path configFilePath = ::getUserConfigFilePath();
+        std::filesystem::path configFilePath = ::getUserConfigFilePath(driverKey_);
         std::pair<bool, Configuration> config = ::readConfiguration(configFilePath);
         if (!config.first) {
-            configFilePath = ::getSystemConfigFilePath();
+            configFilePath = ::getSystemConfigFilePath(driverKey_);
             config = ::readConfiguration(configFilePath);
         }
         unsigned deviceIdOut    = 0;
@@ -432,7 +469,7 @@ public:
     }
 
     void getDriverName(char *buf) {
-        strcpy(buf, cwAsioDriverKey);
+        strcpy(buf, driverKey_.c_str());
     }
 
     long getDriverVersion() {
@@ -704,12 +741,20 @@ public:
     }
 
     cwASIOError future(long sel, void *par) {
-        if(!initialised_) {
-            errorText_ = "cwASIO not initialised";
-            return ASE_InvalidMode;
+        switch(sel) {
+            default:
+                errorText_ = "future selector " + std::to_string(sel) + " not supported";
+                return ASE_InvalidParameter;
+            case kcwASIOsetInstanceName:
+                if(!par) {
+                    errorText_ = "future selector kcwASIOsetInstanceName didn't supply a driver name";
+                    return ASE_InvalidParameter;
+                }
+                char const *driverKey = (char const*) par;
+                driverKey_ = ::makeStringWithMaxLength(driverKey, cwAsioDriverKeyMaxLen);
+                break;
         }
-        errorText_ = "future not supported";
-        return ASE_InvalidParameter;
+        return ASE_OK;
     }
 
     cwASIOError outputReady() {
@@ -793,6 +838,7 @@ private:
     static struct cwASIODriverVtbl const vtbl_;
 
     std::atomic_ulong references_;    // threadsafe reference counter
+    std::string driverKey_;
     bool initialised_;
     std::string errorText_;
     RtAudio rtaDevice_;
