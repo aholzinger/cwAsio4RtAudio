@@ -560,7 +560,7 @@ public:
             errorText_ = "cwASIO not initialised";
             return ASE_InvalidMode;
         }
-        if(srate < 47999.999 || srate > 48000.001) {
+        if(srate < double(sampleRate_) || srate > double(sampleRate_)) {
             errorText_ = "samplerate not supported";
             return ASE_InvalidParameter;
         }
@@ -573,7 +573,7 @@ public:
             return ASE_InvalidMode;
         }
         if(srate)
-            *srate = 48000U;
+            *srate = sampleRate_;
         return ASE_OK;
     }
 
@@ -582,7 +582,7 @@ public:
             errorText_ = "cwASIO not initialised";
             return ASE_InvalidMode;
         }
-        if(srate < 47999.999 || srate > 48000.001) {
+        if(srate < double(sampleRate_) || srate > double(sampleRate_)) {
             errorText_ = "samplerate not supported";
             return ASE_InvalidParameter;
         }
