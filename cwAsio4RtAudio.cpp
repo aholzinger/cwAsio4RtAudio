@@ -762,7 +762,7 @@ reconfigure:
         unsigned totalOutputChannels = 0;
         unsigned totalInputChannels = 0;
         for(unsigned n = 0; n < unsigned(num); n++) {
-            infos->isInput ? totalInputChannels++ : totalOutputChannels++;
+            infos[n].isInput ? totalInputChannels++ : totalOutputChannels++;
         }
         if(totalOutputChannels > getOutputChannels()) {
             errorText_ = "too many output channels";
@@ -773,13 +773,13 @@ reconfigure:
             return ASE_InvalidParameter;
         }
         for(unsigned n = 0; n < unsigned(num); n++) {
-            if(infos->isInput) {
-                if (infos->channelNum >= getInputChannels()) {
+            if(infos[n].isInput) {
+                if (infos[n].channelNum >= getInputChannels()) {
                     errorText_ = "invalid input channelNum";
                     return ASE_InvalidParameter;
                 }
             } else {
-                if (infos->channelNum >= getOutputChannels()) {
+                if (infos[n].channelNum >= getOutputChannels()) {
                     errorText_ = "invalid output channelNum";
                     return ASE_InvalidParameter;
                 }
