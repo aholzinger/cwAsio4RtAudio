@@ -34,7 +34,7 @@ if(NOT C4R_USE_RTAUDIO_TAG)
     if($ENV{C4R_USE_RTAUDIO_TAG})
         set(C4R_USE_RTAUDIO_TAG $ENV{C4R_USE_RTAUDIO_TAG})
     else()
-        set(C4R_USE_RTAUDIO_TAG "acec45bb17425b0bfbc9972ead29d2b0c22c0c93")   # set default tag, when neither cache nor environment variable found.
+        set(C4R_USE_RTAUDIO_TAG "b4f04903312e0e0efffbe77655172e0f060dc085")   # set default tag, when neither cache nor environment variable found.
     endif()
 endif()
 
