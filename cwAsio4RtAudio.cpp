@@ -377,8 +377,10 @@ public:
     }
 
     cwASIOBool init(void *sys) {
-        if(initialised_)
+        if(initialised_) {
+            errorText_ = "already initialised";
             return ASIOFalse;
+        }
         if(!instance_) {
             errorText_ = "future with selector \"kcwASIOsetInstanceName\" not called";
             return ASIOFalse;
