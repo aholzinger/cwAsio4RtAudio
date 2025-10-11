@@ -696,8 +696,8 @@ public:
             errorText_ = std::string(instance_->name) + " not initialised";
             return ASE_InvalidMode;
         }
-        if(size != 256) {
-            errorText_ = "wrong size";
+        if(size != bufferSize_) {
+            errorText_ = "wrong buffer size";
             return ASE_InvalidParameter;
         }
         if(num <= 0) {
