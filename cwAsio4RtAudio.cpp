@@ -489,19 +489,25 @@ reconfigure:
             deviceIdOut = rta_.getDefaultOutputDevice();
             deviceIdIn  = rta_.getDefaultInputDevice();
         }
-        if(dedicatedInDevice && deviceIdIn != 0)
+        if(dedicatedOutDevice && deviceIdOut != 0)
             std::cout << "\033[92;1m" << instance_->name << ": configured RtAudio output device found\033[0m\n";
         if(dedicatedInDevice && deviceIdIn != 0)
             std::cout << "\033[92;1m" << instance_->name << ": configured RtAudio input device found\033[0m\n";
-        cwASIOsampleType astOut = ::to_cwAsioSampleType(rta_.getDeviceInfo(deviceIdOut).nativeFormats);
-        if(deviceIdOut && astOut == ASIOSTLastEntry) {
-            errorText_ = "output device has unsupported sample format";
-            return ASIOFalse;
+        cwASIOsampleType astOut = ASIOSTLastEntry;
+        if(deviceIdOut) {
+            astOut = ::to_cwAsioSampleType(rta_.getDeviceInfo(deviceIdOut).nativeFormats);
+            if(deviceIdOut && astOut == ASIOSTLastEntry) {
+                errorText_ = "output device has unsupported sample format";
+                return ASIOFalse;
+            }
         }
-        cwASIOsampleType astIn = ::to_cwAsioSampleType(rta_.getDeviceInfo(deviceIdIn).nativeFormats);
-        if(deviceIdIn && astIn == ASIOSTLastEntry) {
-            errorText_ = "input device has unsupported sample format";
-            return ASIOFalse;
+        cwASIOsampleType astIn = ASIOSTLastEntry;
+        if(deviceIdIn) {
+            astIn = ::to_cwAsioSampleType(rta_.getDeviceInfo(deviceIdIn).nativeFormats);
+            if(deviceIdIn && astIn == ASIOSTLastEntry) {
+                errorText_ = "input device has unsupported sample format";
+                return ASIOFalse;
+            }
         }
         if(deviceIdOut && deviceIdIn && astOut != astIn) {
             errorText_ = "output and input sample formats differ";
@@ -556,9 +562,9 @@ reconfigure:
         }
 
         deviceIdOut_      = deviceIdOut;
-        outputChannels_   = outputChannels;
+        outputChannels_   = deviceIdOut ? outputChannels : 0;
         deviceIdIn_       = deviceIdIn;
-        inputChannels_    = inputChannels;
+        inputChannels_    = deviceIdIn  ? inputChannels  : 0;
         cwAsioSampleType_ = astOut;
         sampleRate_       = sampleRate;
         bufferSize_       = bufferSize;
