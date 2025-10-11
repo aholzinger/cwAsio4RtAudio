@@ -78,6 +78,14 @@ struct CallbackData {
         , useInput_{useInput} {}
 };
 
+struct cwAsio4RtAudioCallbacks : cwASIOCallbacks {
+    cwAsio4RtAudioCallbacks() : cwASIOCallbacks{0}, cwASIOSamples_{0}, cwASIOTimeStamp_{0} {}
+    cwAsio4RtAudioCallbacks(cwASIOCallbacks const &cwAsioCallbacks) : cwASIOCallbacks{cwAsioCallbacks}, cwASIOSamples_{0}, cwASIOTimeStamp_{0} {}
+
+    cwASIOSamples   cwASIOSamples_;
+    cwASIOTimeStamp cwASIOTimeStamp_;
+};
+
 
 // Initialize the following data constants with the values for your driver.
 char const *cwAsioKey               = "cwASIO";
@@ -713,9 +721,9 @@ reconfigure:
             return ASE_InvalidMode;
         }
         if(sPos)
-            *sPos = 0;
+            *sPos = cwAsio4RtAudioCallbacks_.cwASIOSamples_;
         if(tStamp)
-            *tStamp = 0;
+            *tStamp = cwAsio4RtAudioCallbacks_.cwASIOTimeStamp_;
         return ASE_OK;
     }
 
@@ -811,7 +819,7 @@ reconfigure:
         if (cb->asioMessage) {
             preferBufferSwitchTimeInfo_ = cb->asioMessage(kAsioSupportsTimeInfo, 0, nullptr, nullptr) == 1;
         }
-        cwAsioCallbacks_ = *cb;
+        cwAsio4RtAudioCallbacks_ = *cb;
         return ASE_OK;
     }
 
@@ -899,11 +907,13 @@ private:
         cwAsioTime.timeInfo.sampleRate = 48000;
         cwAsioTime.timeInfo.flags = asioFlags;
         cwAsioTime.timeCode = cwASIOTimeCode{0};
-        if(preferBufferSwitchTimeInfo_ && cwAsioCallbacks_.bufferSwitchTimeInfo) {
-            cwAsioCallbacks_.bufferSwitchTimeInfo(&cwAsioTime, doubleBufferIndex, ASIOTrue);
+        cwAsio4RtAudioCallbacks_.cwASIOSamples_   = cwAsioTime.timeInfo.samplePosition;
+        cwAsio4RtAudioCallbacks_.cwASIOTimeStamp_ = cwAsioTime.timeInfo.systemTime;
+        if(preferBufferSwitchTimeInfo_ && cwAsio4RtAudioCallbacks_.bufferSwitchTimeInfo) {
+            cwAsio4RtAudioCallbacks_.bufferSwitchTimeInfo(&cwAsioTime, doubleBufferIndex, ASIOTrue);
             copied = true;
-        } else if (cwAsioCallbacks_.bufferSwitch) {
-            cwAsioCallbacks_.bufferSwitch(doubleBufferIndex, ASIOTrue);
+        } else if (cwAsio4RtAudioCallbacks_.bufferSwitch) {
+            cwAsio4RtAudioCallbacks_.bufferSwitch(doubleBufferIndex, ASIOTrue);
             copied = true;
         }
         // last copy the data that comes from cwASIO to the sound card if we could call one of the callbacks, otherwise zero the data
@@ -959,7 +969,7 @@ private:
     long long samplePos_;
     std::vector<std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> cwAsioOutBufs_;
     std::vector<std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> cwAsioInBufs_;
-    cwASIOCallbacks cwAsioCallbacks_;
+    cwAsio4RtAudioCallbacks cwAsio4RtAudioCallbacks_;
 };
 
 struct cwASIODriverVtbl const CwAsio4AlsaDriver::vtbl_ = {
