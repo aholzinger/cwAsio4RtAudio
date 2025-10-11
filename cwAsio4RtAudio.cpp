@@ -15,6 +15,7 @@ extern "C" {
 #include <bit>
 #include <cassert>
 #include <cctype>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -24,6 +25,7 @@ extern "C" {
 #include <iostream>
 #include <optional>
 #include <string>
+#include <thread>
 #include <utility>
 
 #include <RtAudio.h>
@@ -40,6 +42,7 @@ extern "C" {
 #define C4R_DRIVER_KEY_8    C4R_MAIN_DRIVER_KEY " #8"
 #define C4R_DRIVER_KEY_9    C4R_MAIN_DRIVER_KEY " #9"
 
+using namespace std::chrono_literals;
 using namespace std::string_literals;
 
 
@@ -403,21 +406,53 @@ public:
         unsigned inputChannels  = 2U;
         unsigned sampleRate     = 48000U;
         unsigned bufferSize     = 256U;
+reconfigure:
+        auto totalStart = std::chrono::steady_clock::now();
+        bool dedicatedOutDevice = false;
+        bool dedicatedInDevice  = false;
         if(config.first) {
             if(config.second.outputDevice_.first) {
-                if(config.second.outputDevice_.second.empty())
+                if(config.second.outputDevice_.second.empty()) {
                     deviceIdOut = rta_.getDefaultOutputDevice();
-                else
+                } else {
+                    dedicatedOutDevice = true;
+                    auto start = std::chrono::steady_clock::now();
+                    do {
                         deviceIdOut = getDeviceId(rta_, config.second.outputDevice_.second);
+                        if (deviceIdOut != 0)
+                            break;
+                        std::this_thread::sleep_for(1s);
+                        rta_.getDeviceCount();
+                    } while(std::chrono::steady_clock::now() - start < 10s);
+                    if(deviceIdOut == 0) {
+                        errorText_ = "configured RtAudio output device not found";
+                        std::cout << "\033[31;1m" << instance_->name << ": " << errorText_ << "\033[0m\n";
+                        return ASIOFalse;
+                    }
+                }
             }
             if(config.second.outputChannels_.first) {
                 outputChannels = config.second.outputChannels_.second;
             }
             if(config.second.inputDevice_.first) {
-                if(config.second.inputDevice_.second.empty())
+                if(config.second.inputDevice_.second.empty()) {
                     deviceIdIn = rta_.getDefaultInputDevice();
-                else
+                } else {
+                    dedicatedInDevice = true;
+                    auto start = std::chrono::steady_clock::now();
+                    do {
                         deviceIdIn = getDeviceId(rta_, config.second.inputDevice_.second);
+                        if (deviceIdIn != 0)
+                            break;
+                        std::this_thread::sleep_for(1s);
+                        rta_.getDeviceCount();
+                    } while(std::chrono::steady_clock::now() - start < 10s);
+                    if(deviceIdIn == 0) {
+                        errorText_ = "configured RtAudio input device not found";
+                        std::cout << "\033[31;1m" << instance_->name << ": " << errorText_ << "\033[0m\n";
+                        return ASIOFalse;
+                    }
+                }
             }
             if(config.second.inputChannels_.first) {
                 inputChannels = config.second.inputChannels_.second;
@@ -429,9 +464,27 @@ public:
             }
         }
         if(deviceIdOut == 0 && deviceIdIn == 0) {
+            if(dedicatedOutDevice && deviceIdOut == 0 || dedicatedInDevice && deviceIdIn == 0) {
+                if(std::chrono::steady_clock::now() - totalStart < 30s)
+                    goto reconfigure;
+                if(dedicatedOutDevice && dedicatedInDevice)
+                    errorText_ = "Neither RtAudio output nor input device found";
+                else if(dedicatedOutDevice)
+                    errorText_ = "RtAudio output device not found";
+                else
+                    errorText_ = "RtAudio input device not found";
+                std::cout << "\033[31;1m" << instance_->name << ": " << errorText_ << "\033[0m\n";
+                return ASIOFalse;
+            }
+            std::cout << instance_->name << ": using default output device\n";
+            std::cout << instance_->name << ": using default input device\n";
             deviceIdOut = rta_.getDefaultOutputDevice();
             deviceIdIn  = rta_.getDefaultInputDevice();
         }
+        if(dedicatedInDevice && deviceIdIn != 0)
+            std::cout << "\033[92;1m" << instance_->name << ": configured RtAudio output device found\033[0m\n";
+        if(dedicatedInDevice && deviceIdIn != 0)
+            std::cout << "\033[92;1m" << instance_->name << ": configured RtAudio input device found\033[0m\n";
         cwASIOsampleType astOut = ::to_cwAsioSampleType(rta_.getDeviceInfo(deviceIdOut).nativeFormats);
         if(deviceIdOut && astOut == ASIOSTLastEntry) {
             errorText_ = "output device has unsupported sample format";
