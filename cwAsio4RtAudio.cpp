@@ -344,6 +344,22 @@ public:
     }
 
     long queryInterface(cwASIOGUID const *guid, void **ptr) {
+        if (guid) {     // This is only non-null on Windows
+            long err = E_NOINTERFACE;
+            // find guid in our instance table
+            for (struct cwASIOinstance const *entry = cwAsioDriverInstances; entry->name; ++entry) {
+                if (cwASIOcompareGUID(guid, &entry->guid)) {
+                    instance_ = entry;
+                    err = 0;     // success
+                    break;
+                }
+            }
+            if (err) {
+                *ptr = NULL;
+                return err;     // none of our guids
+            }
+        }
+        // It's our GUID
         *ptr = this;
         addRef();
         return 0;       // success
