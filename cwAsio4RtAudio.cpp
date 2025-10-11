@@ -298,17 +298,15 @@ static std::filesystem::path getSystemConfigFilePath(std::string const &driverKe
 }
 
 static unsigned getDeviceId(RtAudio &rtAudio, std::string const &deviceName) {
-    std::vector<std::string> names = rtAudio.getDeviceNames();
-    auto cit = std::find(names.cbegin(), names.cend(), deviceName);
-    if(cit == names.cend())
-        return 0; // invalid device ID for device not found
-    auto index = cit - names.cbegin();
     std::vector<unsigned> ids = rtAudio.getDeviceIds();
-    assert(names.size() == ids.size());
-    if(index >= ids.size()) {
-        return 0; // invalid device ID for device not found
+    for(unsigned id : ids) {
+        RtAudio::DeviceInfo di = rtAudio.getDeviceInfo(id);
+        pid_t tid = gettid();
+        unsigned uTid = unsigned(tid);
+        if(deviceName == di.name)
+            return id;
     }
-    return ids.at(index);
+    return 0;
 }
 
 static std::string makeStringWithMaxLength(char const *str, size_t maxLength) {
@@ -385,7 +383,7 @@ public:
             errorText_ = "future with selector \"kcwASIOsetInstanceName\" not called";
             return ASIOFalse;
         }
-        if(rtaDeviceIds_.empty()) {
+        if(rta_.getDeviceCount() == 0) {
             errorText_ = "no RtAudio device available";
             return ASIOFalse;
         }
@@ -894,7 +892,6 @@ private:
     std::string errorText_;
     CallbackData rtaCbData_;
     RtAudio rta_;
-    std::vector<unsigned> rtaDeviceIds_;
     unsigned deviceIdOut_;
     unsigned outputChannels_;
     unsigned deviceIdIn_;
