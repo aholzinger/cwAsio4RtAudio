@@ -25,6 +25,7 @@ extern "C" {
 #include <optional>
 #include <string>
 #include <utility>
+
 #include <RtAudio.h>
 
 #define C4R_MAIN_DRIVER_KEY "cwAsio4RtAudio"
@@ -60,6 +61,20 @@ struct Configuration {
     {
     }
 };
+
+class CwAsio4AlsaDriver;
+struct CallbackData {
+    CwAsio4AlsaDriver *self_;
+    bool useOutput_;
+    bool useInput_;
+
+    CallbackData() : self_{nullptr}, useOutput_{false}, useInput_{false} {}
+    CallbackData(CwAsio4AlsaDriver *self, bool useOutput, bool useInput)
+        : self_{self}
+        , useOutput_{useOutput}
+        , useInput_{useInput} {}
+};
+
 
 // Initialize the following data constants with the values for your driver.
 char const *cwAsioKey               = "cwASIO";
@@ -315,7 +330,6 @@ public:
         , references_{1}
         , driverKey_{C4R_DRIVER_KEY_0}
         , initialised_{false}
-        , rtaDeviceIds_{rta_.getDeviceIds()}
         , deviceIdOut_{0}
         , outputChannels_{0}
         , deviceIdIn_{0}
@@ -374,7 +388,7 @@ public:
                 if(config.second.outputDevice_.second.empty())
                     deviceIdOut = rta_.getDefaultOutputDevice();
                 else
-                    deviceIdOut = getDeviceId(rta_, config.second.outputDevice_.second);
+                        deviceIdOut = getDeviceId(rta_, config.second.outputDevice_.second);
             }
             if(config.second.outputChannels_.first) {
                 outputChannels = config.second.outputChannels_.second;
@@ -383,7 +397,7 @@ public:
                 if(config.second.inputDevice_.second.empty())
                     deviceIdIn = rta_.getDefaultInputDevice();
                 else
-                    deviceIdIn = getDeviceId(rta_, config.second.inputDevice_.second);
+                        deviceIdIn = getDeviceId(rta_, config.second.inputDevice_.second);
             }
             if(config.second.inputChannels_.first) {
                 inputChannels = config.second.inputChannels_.second;
@@ -448,10 +462,13 @@ public:
             return ASIOFalse;
         }
 
-        auto cb = [that = this, pParamsOut, pParamsIn](void *outBuf, void *inBuf, unsigned frames, double streamTime, RtAudioStreamStatus status, void*) {
-            return that->rtAudioCallback(pParamsOut ? outBuf : nullptr, pParamsIn ? inBuf : nullptr, frames, streamTime, status);
+        CallbackData cbd{this, pParamsOut ? true : false, pParamsIn ? true : false};
+        rtaCbData_ = std::move(cbd);
+        auto cb = [](void *outBuf, void *inBuf, unsigned frames, double streamTime, RtAudioStreamStatus status, void *cbd) {
+            CallbackData *rtcbd = (CallbackData*) cbd;
+            return rtcbd->self_->rtAudioCallback(rtcbd->useOutput_ ? outBuf : nullptr, rtcbd->useInput_ ? inBuf : nullptr, frames, streamTime, status);
         };
-        RtAudioErrorType rtaError = rta_.openStream(pParamsOut, pParamsIn, RTAUDIO_SINT32, sampleRate, &bufferSize, cb);
+        RtAudioErrorType rtaError = rta_.openStream(pParamsOut, pParamsIn, RTAUDIO_SINT32, sampleRate, &bufferSize, cb, &rtaCbData_);
         if(rtaError != RTAUDIO_NO_ERROR) {
             errorText_ = "RtAudio::openStream: " + ::to_string(rtaError);
             return ASIOFalse;
@@ -841,6 +858,7 @@ private:
     std::string driverKey_;
     bool initialised_;
     std::string errorText_;
+    CallbackData rtaCbData_;
     RtAudio rta_;
     std::vector<unsigned> rtaDeviceIds_;
     unsigned deviceIdOut_;
