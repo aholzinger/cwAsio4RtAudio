@@ -384,6 +384,7 @@ public:
         if(!instance_) {
             errorText_ = "future with selector \"kcwASIOsetInstanceName\" not called";
             return ASIOFalse;
+        }
         if(rtaDeviceIds_.empty()) {
             errorText_ = "no RtAudio device available";
             return ASIOFalse;
