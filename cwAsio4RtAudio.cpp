@@ -170,6 +170,38 @@ static cwASIOsampleType to_cwAsioSampleType(RtAudioFormat rtAudioFormats) {
     }
 }
 
+static RtAudioFormat to_cwAsioSampleType(cwASIOsampleType cwAsiosampleType) {
+    unsigned bits = 0;
+    bool floatFormat = false;
+    if(cwAsiosampleType == ASIOSTFloat64MSB || cwAsiosampleType == ASIOSTFloat64LSB) {
+        bits = 64U;
+        floatFormat = true;
+    } else if(cwAsiosampleType == ASIOSTFloat32MSB || cwAsiosampleType == ASIOSTFloat32LSB) {
+        bits = 32U;
+        floatFormat = true;
+    } else if(cwAsiosampleType == ASIOSTInt32MSB || cwAsiosampleType == ASIOSTInt32LSB) {
+        bits = 32U;
+    } else if(cwAsiosampleType == ASIOSTInt24MSB || cwAsiosampleType == ASIOSTInt24LSB) {
+        bits = 24U;
+    } else if(cwAsiosampleType == ASIOSTInt16MSB || cwAsiosampleType == ASIOSTInt16LSB) {
+        bits = 16U;
+    }
+    if(floatFormat) {
+        if(bits == 64U) {
+            return RTAUDIO_FLOAT64;
+        } else {
+            return RTAUDIO_FLOAT32;
+        }
+    } else {
+        switch(bits) {
+            default:  return 0;
+            case 16U: return RTAUDIO_SINT16;
+            case 24U: return RTAUDIO_SINT24;
+            case 32U: return RTAUDIO_SINT32;
+        }
+    }
+}
+
 static size_t getSampleSizeInBytes(cwASIOsampleType ast) {
     switch(ast) {
         default:
@@ -513,6 +545,11 @@ reconfigure:
             errorText_ = "output and input sample formats differ";
             return ASIOFalse;
         }
+        cwASIOsampleType ast = ASIOSTLastEntry;
+        if(deviceIdOut)
+            ast = astOut;
+        else if(deviceIdIn)
+            ast = astIn;
         RtAudio::StreamParameters paramsOut;
         RtAudio::StreamParameters *pParamsOut = nullptr;
         if(deviceIdOut) {
@@ -555,7 +592,7 @@ reconfigure:
             CallbackData *rtcbd = (CallbackData*) cbd;
             return rtcbd->self_->rtAudioCallback(rtcbd->useOutput_ ? outBuf : nullptr, rtcbd->useInput_ ? inBuf : nullptr, frames, streamTime, status);
         };
-        RtAudioErrorType rtaError = rta_.openStream(pParamsOut, pParamsIn, RTAUDIO_SINT32, sampleRate, &bufferSize, cb, &rtaCbData_);
+        RtAudioErrorType rtaError = rta_.openStream(pParamsOut, pParamsIn, ::to_cwAsioSampleType(ast), sampleRate, &bufferSize, cb, &rtaCbData_);
         if(rtaError != RTAUDIO_NO_ERROR) {
             errorText_ = "RtAudio::openStream: " + ::to_string(rtaError);
             return ASIOFalse;
