@@ -910,7 +910,7 @@ private:
         cwAsioTime.timeInfo.speed = 1.0;
         cwAsioTime.timeInfo.systemTime = ::getSystemTime();
         cwAsioTime.timeInfo.samplePosition = samplePos_;
-        cwAsioTime.timeInfo.sampleRate = 48000;
+        cwAsioTime.timeInfo.sampleRate = sampleRate_;
         cwAsioTime.timeInfo.flags = asioFlags;
         cwAsioTime.timeCode = cwASIOTimeCode{0};
         cwAsio4RtAudioCallbacks_.cwASIOSamples_   = cwAsioTime.timeInfo.samplePosition;
