@@ -889,11 +889,12 @@ private:
         size_t ssib = ::getSampleSizeInBytes(cwAsioSampleType_);
         // first copy data coming from the sound card to the cwASIO input buffers
         unsigned const inChans = getInputChannels();
+		frames = std::min(frames, bufferSize_);
         for(unsigned n = 0; n < inChans; n++) {
             uint8_t *cwAsioInBuf = pingNotPong_ ? cwAsioInBufs_[n].first.data() : cwAsioInBufs_[n].second.data();
             uint8_t *dst = cwAsioInBuf;
             uint8_t const *src = (uint8_t*) inBuf + n * ssib;
-            for(unsigned f = 0; f < frames && f < 256U; f++) {
+            for(unsigned f = 0; f < frames; f++) {
                 assert(dst < cwAsioInBuf + frames * ssib);
                 assert(src < (uint8_t*) inBuf + inChans * frames * ssib);
                 ::memcpy(dst, src, ssib);
@@ -929,7 +930,7 @@ private:
             uint8_t *dst = (uint8_t*) outBuf + n * ssib;;
             uint64_t zero = 0;
             uint8_t const *src = copied ? (uint8_t*) cwAsioOutBuf : (uint8_t*) &zero;
-            for(unsigned f = 0; f < frames && f < 256U; f++) {
+            for(unsigned f = 0; f < frames; f++) {
                 assert(dst < (uint8_t*) outBuf + outChans * frames * ssib);
                 if(copied)
                     assert(src < cwAsioOutBuf + frames * ssib);
