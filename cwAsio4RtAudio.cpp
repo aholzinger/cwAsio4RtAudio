@@ -981,15 +981,24 @@ private:
         pingNotPong_ = !pingNotPong_;
         return 0;
     }
+    // Must report the channel count that openStream() actually negotiated, not
+    // what the device is capable of. The RtAudio callback buffers are laid out
+    // for StreamParameters::nChannels, which is the configured count (see the
+    // "inputChannels"/"outputChannels" config keys). Returning the device
+    // capability here made rtAudioCallback() de-interleave with a too-large
+    // stride and run past the end of both callback buffers -- garbage on input
+    // and an out-of-bounds write on output whenever the configured count was
+    // smaller than the device count. getChannels() already reports these
+    // members, so the two disagreed.
     unsigned getOutputChannels() {
         if(deviceIdOut_ == 0)
             return 0;
-        return rta_.getDeviceInfo(deviceIdOut_).outputChannels;
+        return outputChannels_;
     }
     unsigned getInputChannels() {
         if(deviceIdIn_ == 0)
             return 0;
-        return rta_.getDeviceInfo(deviceIdIn_).inputChannels;
+        return inputChannels_;
     }
 
 
