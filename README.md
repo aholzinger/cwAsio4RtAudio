@@ -16,4 +16,4 @@ To allow cwAsio4RtAudio being found as a cwASIO driver (for the moment) you have
 
 You can define which audio devices and samplerates, etc. to use by copying the file "config" to either /etc/cwASIO/cwAsio4RtAudio (system wide settings) or ~/.cwASIO/cwAsio4RtAudio. If the config file in ~/.cwASIO/cwAsio4RtAudio is found the system wide will not be used.
 
-The driver supports multiple instances: just add another directory in /etc/cwASIO with a different name, but let the "driver" file point to the same DLL/shared object. The same applies for the "config" file stored in the driver's subdirectory inside the ~/.cwASIO directory.
+The driver supports multiple instances: just add another directory in /etc/cwASIO with a different name (needs to named like this "cwAsio4RtAudio #1" to "cwAsio4RtAudio #9", so you can have a max of ten entries), but let the "driver" file point to the same DLL/shared object. The same applies for the "config" file stored in the driver's subdirectory inside the ~/.cwASIO directory.
