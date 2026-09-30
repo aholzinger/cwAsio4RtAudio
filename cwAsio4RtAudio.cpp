@@ -28,6 +28,9 @@ extern "C" {
 #include <thread>
 #include <utility>
 
+#include <pwd.h>
+#include <unistd.h>
+
 #include <RtAudio.h>
 
 #define C4R_MAIN_DRIVER_KEY "cwAsio4RtAudio"
@@ -295,7 +298,11 @@ static std::pair<bool, Configuration> readConfiguration(std::filesystem::path co
 
 static std::string getHomeDirectory() {
     char const *home = std::getenv("HOME");
-    return std::string(home);
+    if(!home) {
+        struct passwd const *pw = ::getpwuid(::getuid());
+        home = pw ? pw->pw_dir : nullptr;
+    }
+    return home ? std::string(home) : std::string();
 }
 
 static void appendConfigPath(std::filesystem::path &path, std::string const &driverKey) {
@@ -304,7 +311,10 @@ static void appendConfigPath(std::filesystem::path &path, std::string const &dri
 }
 
 static std::filesystem::path getUserConfigFilePath(std::string const &driverKey) {
-    std::filesystem::path path = ::getHomeDirectory() / std::filesystem::path("."s + cwAsioKey);
+    std::string home = ::getHomeDirectory();
+    if(home.empty())
+        return std::filesystem::path();     // no user config, fall back to the system config
+    std::filesystem::path path = home / std::filesystem::path("."s + cwAsioKey);
     appendConfigPath(path, driverKey);
     return path;
 }
