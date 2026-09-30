@@ -68,3 +68,7 @@ PUBLIC
 PRIVATE
     cwAsio4RtAudio.cpp
 )
+
+# helper used by install.sh to call the driver's registerDriver()/unregisterDriver()
+add_executable(cwAsioRegister cwAsioRegister.c)
+target_link_libraries(cwAsioRegister PRIVATE ${CMAKE_DL_LIBS})
