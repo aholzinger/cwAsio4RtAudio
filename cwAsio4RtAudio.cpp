@@ -577,7 +577,9 @@ reconfigure:
     }
 
     void getErrorMessage(char *buf) {
-        strncpy(buf, errorText_.c_str(), std::min(errorText_.length(), errorBufLength));
+        size_t len = std::min(errorText_.length(), errorBufLength);
+        memcpy(buf, errorText_.c_str(), len);
+        buf[len] = '\0';
     }
 
     cwASIOError start() {
