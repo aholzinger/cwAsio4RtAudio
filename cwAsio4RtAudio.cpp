@@ -118,7 +118,7 @@ static cwASIOsampleType to_cwAsioSampleType(RtAudioFormat rtAudioFormats) {
         floatFormat = true;
     } else if(rtAudioFormats & RTAUDIO_FLOAT32) {
         bits = 32U;
-        floatFormat = false;
+        floatFormat = true;
     } else if(rtAudioFormats & RTAUDIO_SINT32) {
         bits = 32U;
     } else if(rtAudioFormats & RTAUDIO_SINT24) {
