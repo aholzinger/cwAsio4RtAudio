@@ -31,16 +31,6 @@ extern "C" {
 #include <RtAudio.h>
 
 #define C4R_MAIN_DRIVER_KEY "cwAsio4RtAudio"
-#define C4R_DRIVER_KEY_0    C4R_MAIN_DRIVER_KEY
-#define C4R_DRIVER_KEY_1    C4R_MAIN_DRIVER_KEY " #1"
-#define C4R_DRIVER_KEY_2    C4R_MAIN_DRIVER_KEY " #2"
-#define C4R_DRIVER_KEY_3    C4R_MAIN_DRIVER_KEY " #3"
-#define C4R_DRIVER_KEY_4    C4R_MAIN_DRIVER_KEY " #4"
-#define C4R_DRIVER_KEY_5    C4R_MAIN_DRIVER_KEY " #5"
-#define C4R_DRIVER_KEY_6    C4R_MAIN_DRIVER_KEY " #6"
-#define C4R_DRIVER_KEY_7    C4R_MAIN_DRIVER_KEY " #7"
-#define C4R_DRIVER_KEY_8    C4R_MAIN_DRIVER_KEY " #8"
-#define C4R_DRIVER_KEY_9    C4R_MAIN_DRIVER_KEY " #9"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -99,21 +89,6 @@ char const *configInputDevice       = "inputDevice=";
 char const *configInputChannels     = "inputChannels=";
 char const *configSampleRate        = "sampleRate=";
 char const *configBufferSize        = "bufferSize=";
-
-// we support 10 cwASIO devices of our kind
-struct cwASIOinstance const cwAsioDriverInstances[] = {
-    { .name = C4R_DRIVER_KEY_0, .guid = {0x754214be,0xf784,0x439e,0xa8,0x04,0x4e,0xf7,0x46,0x1f,0x26,0xc8} },
-    { .name = C4R_DRIVER_KEY_1, .guid = {0x00af3471,0x800a,0x48bf,0xb6,0x74,0x4e,0xcc,0x84,0xcc,0x3a,0x0a} },
-    { .name = C4R_DRIVER_KEY_2, .guid = {0x1b1a4acc,0x3518,0x4afa,0xad,0xee,0xc8,0x9b,0x3d,0xb1,0x13,0x06} },
-    { .name = C4R_DRIVER_KEY_3, .guid = {0x1b82d5fb,0x3365,0x4ed3,0xa1,0x19,0x48,0x42,0x27,0xed,0xc3,0x54} },
-    { .name = C4R_DRIVER_KEY_4, .guid = {0x7fd4c48d,0x002e,0x4294,0x90,0x53,0xab,0xf5,0x84,0x19,0xfc,0x01} },
-    { .name = C4R_DRIVER_KEY_5, .guid = {0xf1d72885,0xf745,0x42db,0x99,0xaa,0x25,0x62,0xc0,0xf5,0x75,0xc0} },
-    { .name = C4R_DRIVER_KEY_6, .guid = {0x4c27d025,0x0756,0x4097,0xb6,0xd4,0x5a,0xc6,0x39,0xdc,0xad,0xb9} },
-    { .name = C4R_DRIVER_KEY_7, .guid = {0xee884f67,0xddd5,0x4587,0x8b,0xff,0xbf,0x26,0x8b,0xd6,0xdf,0xa5} },
-    { .name = C4R_DRIVER_KEY_8, .guid = {0x5f75abba,0x7036,0x4d40,0xb9,0x4d,0xc0,0x68,0xa3,0x90,0x69,0xa0} },
-    { .name = C4R_DRIVER_KEY_9, .guid = {0x1b10277c,0x64d8,0x4fa5,0xa7,0x32,0xc1,0xde,0x5c,0x64,0x7b,0x4a} },
-    { .name = NULL }        // this terminates the list and must always be there.
-};
 
 std::atomic_uint activeInstances = 0;
 
@@ -352,15 +327,6 @@ static unsigned getDeviceId(RtAudio &rtAudio, std::string const &deviceName) {
     return 0;
 }
 
-static std::string makeStringWithMaxLength(char const *str, size_t maxLength) {
-    assert(maxLength);
-    if(maxLength == 0)
-        return std::string();
-    std::string s(str, str + maxLength);
-    s[maxLength - 1U] = '\0';      // there might not be a null byte at the end of the string
-    return std::string(s.c_str()); // return like this is needed to return shorter string
-}
-
 /** The cwASIO driver implemented as a C++ class. */
 class CwAsio4AlsaDriver : public cwASIODriver {
     CwAsio4AlsaDriver(CwAsio4AlsaDriver &&) =delete;  // no move/copy
@@ -369,7 +335,6 @@ public:
     CwAsio4AlsaDriver()
         : cwASIODriver{ &vtbl_ }
         , references_{1}
-        , instance_{nullptr}
         , initialised_{false}
         , deviceIdOut_{0}
         , outputChannels_{0}
@@ -385,22 +350,16 @@ public:
     }
 
     long queryInterface(cwASIOGUID const *guid, void **ptr) {
-        if (guid) {     // This is only non-null on Windows
-            long err = E_NOINTERFACE;
-            // find guid in our instance table
-            for (struct cwASIOinstance const *entry = cwAsioDriverInstances; entry->name; ++entry) {
-                if (cwASIOcompareGUID(guid, &entry->guid)) {
-                    instance_ = entry;
-                    err = 0;     // success
-                    break;
-                }
-            }
-            if (err) {
-                *ptr = NULL;
-                return err;     // none of our guids
-            }
+        // On Windows, the default instance name is the registry key under which the GUID is registered.
+        // On Linux there's no GUID, and the host must set the name with future(kcwASIOsetInstanceName).
+        char name[cwAsioDriverKeyMaxLen] = {};
+        long res = cwASIOfindName(guid, name, sizeof name);
+        if(res < 0) {
+            *ptr = nullptr;
+            return -res;            // GUID not found in registry
         }
-        // It's our GUID
+        if(res > 0 && res < (long)sizeof name)
+            name_ = name;           // a name too long for ASIO is ignored, init() will fail
         *ptr = this;
         addRef();
         return 0;       // success
@@ -424,7 +383,7 @@ public:
             errorText_ = "already initialised";
             return ASIOFalse;
         }
-        if(!instance_) {
+        if(name_.empty()) {
             errorText_ = "future with selector \"kcwASIOsetInstanceName\" not called";
             return ASIOFalse;
         }
@@ -434,10 +393,10 @@ public:
         }
         // read stored configuration
         // first try user's home directory
-        std::filesystem::path configFilePath = ::getUserConfigFilePath(instance_->name);
+        std::filesystem::path configFilePath = ::getUserConfigFilePath(name_);
         std::pair<bool, Configuration> config = ::readConfiguration(configFilePath);
         if (!config.first) {
-            configFilePath = ::getSystemConfigFilePath(instance_->name);
+            configFilePath = ::getSystemConfigFilePath(name_);
             config = ::readConfiguration(configFilePath);
         }
         unsigned deviceIdOut    = 0;
@@ -466,7 +425,7 @@ reconfigure:
                     } while(std::chrono::steady_clock::now() - start < 10s);
                     if(deviceIdOut == 0) {
                         errorText_ = "configured RtAudio output device not found";
-                        std::cout << "\033[31;1m" << instance_->name << ": " << errorText_ << "\033[0m\n";
+                        std::cout << "\033[31;1m" << name_ << ": " << errorText_ << "\033[0m\n";
                         return ASIOFalse;
                     }
                 }
@@ -489,7 +448,7 @@ reconfigure:
                     } while(std::chrono::steady_clock::now() - start < 10s);
                     if(deviceIdIn == 0) {
                         errorText_ = "configured RtAudio input device not found";
-                        std::cout << "\033[31;1m" << instance_->name << ": " << errorText_ << "\033[0m\n";
+                        std::cout << "\033[31;1m" << name_ << ": " << errorText_ << "\033[0m\n";
                         return ASIOFalse;
                     }
                 }
@@ -513,18 +472,18 @@ reconfigure:
                     errorText_ = "RtAudio output device not found";
                 else
                     errorText_ = "RtAudio input device not found";
-                std::cout << "\033[31;1m" << instance_->name << ": " << errorText_ << "\033[0m\n";
+                std::cout << "\033[31;1m" << name_ << ": " << errorText_ << "\033[0m\n";
                 return ASIOFalse;
             }
-            std::cout << instance_->name << ": using default output device\n";
-            std::cout << instance_->name << ": using default input device\n";
+            std::cout << name_ << ": using default output device\n";
+            std::cout << name_ << ": using default input device\n";
             deviceIdOut = rta_.getDefaultOutputDevice();
             deviceIdIn  = rta_.getDefaultInputDevice();
         }
         if(dedicatedOutDevice && deviceIdOut != 0)
-            std::cout << "\033[92;1m" << instance_->name << ": configured RtAudio output device found\033[0m\n";
+            std::cout << "\033[92;1m" << name_ << ": configured RtAudio output device found\033[0m\n";
         if(dedicatedInDevice && deviceIdIn != 0)
-            std::cout << "\033[92;1m" << instance_->name << ": configured RtAudio input device found\033[0m\n";
+            std::cout << "\033[92;1m" << name_ << ": configured RtAudio input device found\033[0m\n";
         cwASIOsampleType astOut = ASIOSTLastEntry;
         if(deviceIdOut) {
             astOut = ::to_cwAsioSampleType(rta_.getDeviceInfo(deviceIdOut).nativeFormats);
@@ -610,7 +569,7 @@ reconfigure:
     }
 
     void getDriverName(char *buf) {
-        strcpy(buf, instance_->name);
+        strcpy(buf, name_.c_str());
     }
 
     long getDriverVersion() {
@@ -637,7 +596,7 @@ reconfigure:
 
     cwASIOError stop() {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(!rta_.isStreamOpen()) {
@@ -658,7 +617,7 @@ reconfigure:
 
     cwASIOError getChannels(long *in, long *out) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(in)
@@ -670,7 +629,7 @@ reconfigure:
 
     cwASIOError getLatencies(long *in, long *out) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(in)
@@ -682,7 +641,7 @@ reconfigure:
 
     cwASIOError getBufferSize(long *min, long *max, long *pref, long *gran) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(min)
@@ -698,7 +657,7 @@ reconfigure:
 
     cwASIOError canSampleRate(double srate) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(srate < double(sampleRate_) || srate > double(sampleRate_)) {
@@ -710,7 +669,7 @@ reconfigure:
 
     cwASIOError getSampleRate(double *srate) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(srate)
@@ -720,7 +679,7 @@ reconfigure:
 
     cwASIOError setSampleRate(double srate) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(srate < double(sampleRate_) || srate > double(sampleRate_)) {
@@ -732,7 +691,7 @@ reconfigure:
 
     cwASIOError getClockSources(struct cwASIOClockSource *clocks, long *num) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(clocks && num && *num > 0) {
@@ -748,7 +707,7 @@ reconfigure:
 
     cwASIOError setClockSource(long ref) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(ref != 0) {
@@ -760,7 +719,7 @@ reconfigure:
 
     cwASIOError getSamplePosition(cwASIOSamples *sPos, cwASIOTimeStamp *tStamp) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(sPos)
@@ -772,7 +731,7 @@ reconfigure:
 
     cwASIOError getChannelInfo(struct cwASIOChannelInfo *info) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(info) {
@@ -799,7 +758,7 @@ reconfigure:
 
     cwASIOError createBuffers(struct cwASIOBufferInfo *infos, long num, long size, struct cwASIOCallbacks const *cb) {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         if(size != bufferSize_) {
@@ -868,7 +827,7 @@ reconfigure:
 
     cwASIOError disposeBuffers() {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         cwAsioOutBufs_.clear();
@@ -887,34 +846,30 @@ reconfigure:
                 errorText_ = "future selector " + std::to_string(sel) + " not supported";
                 return ASE_InvalidParameter;
             case kcwASIOsetInstanceName:
-                if(!par) {
-                    errorText_ = "future selector kcwASIOsetInstanceName didn't supply a driver name";
-                    return ASE_InvalidParameter;
+                char const *name = (char const*) par;
+                if(!name || *name == '\0')
+                    return ASE_SUCCESS;     // only checks for multiinstance support
+                if(strlen(name) >= cwAsioDriverKeyMaxLen) {
+                    errorText_ = "instance name too long for ASIO";
+                    return ASE_NotPresent;
                 }
-                char const *parameter = (char const*) par;
-                std::string driverKey = ::makeStringWithMaxLength(parameter, cwAsioDriverKeyMaxLen);
-                for (struct cwASIOinstance const *entry = cwAsioDriverInstances; entry->name; ++entry) {
-                    if(driverKey == entry->name) {
-                        if(0 != cwASIOgetParameter(entry->name, NULL, NULL, 0))
-                            break;      // not registered
-                        if(instance_) {
-                            if(instance_ != entry) {
-                                std::cerr << "warning: different cwASIO drivers chosen in queryInterface (\""
-                                          << instance_->name << "\") and in future (\"" << entry->name
-                                          << "\") using the future one!\n";
-                            }
-                        }
-                        instance_ = entry;
-                        return ASE_SUCCESS;
-                    }
+                if(0 != cwASIOgetParameter(name, NULL, NULL, 0)) {
+                    errorText_ = "instance \""s + name + "\" not registered";
+                    return ASE_NotPresent;
                 }
-                return ASE_NotPresent;
+                if(!name_.empty() && name_ != name) {
+                    std::cerr << "warning: different cwASIO drivers chosen in queryInterface (\""
+                              << name_ << "\") and in future (\"" << name
+                              << "\") using the future one!\n";
+                }
+                name_ = name;
+                return ASE_SUCCESS;
         }
     }
 
     cwASIOError outputReady() {
         if(!initialised_) {
-            errorText_ = std::string(instance_->name) + " not initialised";
+            errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
         errorText_ = "outputReady not supported";
@@ -1005,7 +960,7 @@ private:
     static struct cwASIODriverVtbl const vtbl_;
 
     std::atomic_ulong references_;    // threadsafe reference counter
-    cwASIOinstance const *instance_;  // which instance was selected
+    std::string name_;                // instance name, max. 31 chars as per ASIO
     bool initialised_;
     std::string errorText_;
     CallbackData rtaCbData_;
@@ -1054,7 +1009,9 @@ struct cwASIODriverVtbl const CwAsio4AlsaDriver::vtbl_ = {
 
 cwASIODriver *makeAsioDriver() {
     try {
-        return new CwAsio4AlsaDriver();
+        cwASIODriver *drv = new CwAsio4AlsaDriver();
+        activeInstances.fetch_add(1);
+        return drv;
     } catch(std::exception &ex) {
         return nullptr;
     }

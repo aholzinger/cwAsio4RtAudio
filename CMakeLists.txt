@@ -12,7 +12,7 @@ if(NOT C4R_USE_CWASIO_TAG)
     if($ENV{C4R_USE_CWASIO_TAG})
         set(C4R_USE_CWASIO_TAG $ENV{C4R_USE_CWASIO_TAG})
     else()
-        set(C4R_USE_CWASIO_TAG "1d53e4e696468adfcb91c098e576f11589324096")   # set default tag, when neither cache nor environment variable found.
+        set(C4R_USE_CWASIO_TAG "401d494bedbe2dbb353f3b2aa4191187db8e1864")   # set default tag, when neither cache nor environment variable found.
     endif()
 endif()
 
