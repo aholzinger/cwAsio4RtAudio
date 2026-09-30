@@ -561,7 +561,7 @@ reconfigure:
         outputChannels_   = deviceIdOut ? outputChannels : 0;
         deviceIdIn_       = deviceIdIn;
         inputChannels_    = deviceIdIn  ? inputChannels  : 0;
-        cwAsioSampleType_ = astOut;
+        cwAsioSampleType_ = ast;
         sampleRate_       = sampleRate;
         bufferSize_       = bufferSize;
         initialised_      = true;
