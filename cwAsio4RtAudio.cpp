@@ -356,6 +356,7 @@ public:
         , preferBufferSwitchTimeInfo_{false}
         , pingNotPong_{true}
         , samplePos_{0}
+        , buffersCreated_{false}
     {
     }
 
@@ -597,6 +598,10 @@ reconfigure:
             errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
+        if(!buffersCreated_) {
+            errorText_ = "buffers not created";
+            return ASE_InvalidMode;
+        }
         RtAudioErrorType rtaError = rta_.startStream();
         if(rtaError != RTAUDIO_NO_ERROR) {
             errorText_ = "RtAudio::startStream: " + ::to_string(rtaError);
@@ -772,6 +777,10 @@ reconfigure:
             errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
+        if(buffersCreated_) {
+            errorText_ = "buffers already created";
+            return ASE_InvalidMode;
+        }
         if(size != bufferSize_) {
             errorText_ = "wrong buffer size";
             return ASE_InvalidParameter;
@@ -833,6 +842,7 @@ reconfigure:
             preferBufferSwitchTimeInfo_ = cb->asioMessage(kAsioSupportsTimeInfo, 0, nullptr, nullptr) == 1;
         }
         cwAsio4RtAudioCallbacks_ = *cb;
+        buffersCreated_ = true;
         return ASE_OK;
     }
 
@@ -841,6 +851,19 @@ reconfigure:
             errorText_ = "not initialised";
             return ASE_InvalidMode;
         }
+        if(!buffersCreated_) {
+            errorText_ = "buffers not created";
+            return ASE_InvalidMode;
+        }
+        // the callback uses the buffers, so it must not run any more
+        if(rta_.isStreamRunning()) {
+            RtAudioErrorType rtaError = rta_.stopStream();
+            if(rtaError != RTAUDIO_NO_ERROR) {
+                errorText_ = "RtAudio::stopStream: " + ::to_string(rtaError);
+                return ASE_HWMalfunction;
+            }
+        }
+        buffersCreated_ = false;
         cwAsioOutBufs_.clear();
         cwAsioInBufs_.clear();
         return ASE_OK;
@@ -986,6 +1009,7 @@ private:
     bool preferBufferSwitchTimeInfo_;
     bool pingNotPong_;
     long long samplePos_;
+    bool buffersCreated_;           // the callback must not run unless this is true
     std::vector<std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> cwAsioOutBufs_;
     std::vector<std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> cwAsioInBufs_;
     cwAsio4RtAudioCallbacks cwAsio4RtAudioCallbacks_;
